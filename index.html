@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Income & Expense Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-container, .totals-container {
+            width: 100%;
+        }
+        .input-group {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .totals-container {
+            text-align: left;
+            line-height: 2em;
+            font-size: 1em;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .add-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .edit-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .clear-btn, .download-btn {
+            background-color: #dc3545;
+            color: white;
+            width: 130px; /* Same size for both buttons */
+            margin-top: 10px;
+        }
+        .download-btn {
+            background-color: #007bff;
+        }
+        .transactions-container {
+            margin-top: 30px;
+        }
+        .transactions-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .transactions-container table, th, td {
+            border: 1px solid #ddd;
+        }
+        .transactions-container th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        .transactions-container th {
+            background-color: #f2f2f2;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="form-container">
+            <div class="input-group">
+                <label for="date-input">Date:</label>
+                <input type="date" id="date-input">
+            </div>
+            <div class="input-group">
+                <label for="transaction-type">Type:</label>
+                <select id="transaction-type">
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="description">Description:</label>
+                <input type="text" id="description" placeholder="Enter description">
+            </div>
+            <div class="input-group">
+                <label for="amount">Amount:</label>
+                <input type="text" id="amount" placeholder="Enter amount">
+            </div>
+            <div class="input-group">
+                <button id="add-transaction" class="add-btn">Add Transaction</button>
+            </div>
+        </div>
+
+        <div class="totals-container">
+            <p><strong>Total Income:</strong> ₹<span id="total-income">0.00</span></p>
+            <p><strong>Total Expense:</strong> ₹<span id="total-expense">0.00</span></p>
+            <p><strong>Balance:</strong> ₹<span id="balance">0.00</span></p>
+        </div>
+
+        <div class="actions">
+            <button id="clear-all" class="clear-btn">Clear All</button>
+            <button id="export-data" class="download-btn">Download Data</button>
+        </div>
+    </div>
+
+    <div class="transactions-container">
+        <h3>Transactions</h3>
+        <table id="transaction-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="transaction-list"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const dateInput = document.getElementById('date-input');
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || {};
+
+        function updateTotals() {
+            const date = dateInput.value;
+            const dailyTransactions = transactions[date] || [];
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            dailyTransactions.forEach((transaction) => {
+                if (transaction.type === 'income') {
+                    totalIncome += transaction.amount;
+                } else {
+                    totalExpense += transaction.amount;
+                }
+            });
+
+            const balance = totalIncome - totalExpense;
+
+            document.getElementById('total-income').innerText = totalIncome.toFixed(2);
+            document.getElementById('total-expense').innerText = totalExpense.toFixed(2);
+            document.getElementById('balance').innerText = balance.toFixed(2);
+
+            renderTransactions();
+        }
+
+        function renderTransactions() {
+            const date = dateInput.value;
+            const dailyTransactions = transactions[date] || [];
+            const transactionList = document.getElementById('transaction-list');
+            transactionList.innerHTML = '';
+
+            dailyTransactions.forEach((transaction, index) => {
+                const row = document.createElement('tr');
+                
+                const formattedDate = new Date(date).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                });
+
+                row.innerHTML = `
+                    <td>${formattedDate}</td>
+                    <td>${transaction.description}</td>
+                    <td>${transaction.type}</td>
+                    <td>₹${transaction.amount.toFixed(2)}</td>
+                    <td>
+                        <button class="edit-btn" onclick="editTransaction(${index})">Edit</button>
+                        <button class="delete-btn" onclick="confirmDelete(${index})">Delete</button>
+                    </td>
+                `;
+                transactionList.appendChild(row);
+            });
+        }
+
+        document.getElementById('add-transaction').addEventListener('click', function() {
+            const date = dateInput.value;
+            const type = document.getElementById('transaction-type').value;
+            const description = document.getElementById('description').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            if (!description || isNaN(amount) || amount <= 0) {
+                alert('Please enter valid transaction details.');
+                return;
+            }
+
+            if (!transactions[date]) {
+                transactions[date] = [];
+            }
+
+            transactions[date].push({ type, description, amount });
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+
+            document.getElementById('description').value = '';
+            document.getElementById('amount').value = '';
+
+            updateTotals();
+        });
+
+        function confirmDelete(index) {
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                deleteTransaction(index);
+            }
+        }
+
+        function deleteTransaction(index) {
+            const date = dateInput.value;
+            transactions[date].splice(index, 1);
+
+            if (transactions[date].length === 0) {
+                delete transactions[date];
+            }
+
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            updateTotals();
+        }
+
+        document.getElementById('clear-all').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all transactions?')) {
+                transactions = {};
+                localStorage.removeItem('transactions');
+                updateTotals();
+            }
+        });
+
+        document.getElementById('export-data').addEventListener('click', function() {
+            let csvContent = "data:text/csv;charset=utf-8,Date,Type,Description,Amount\n";
+            for (const [date, dailyTransactions] of Object.entries(transactions)) {
+                dailyTransactions.forEach(transaction => {
+                    const row = [date, transaction.type, transaction.description, transaction.amount].join(",");
+                    csvContent += row + "\n";
+                });
+            }
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", encodeURI(csvContent));
+            downloadAnchorNode.setAttribute("download", "transactions.csv");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+
+        // Tab navigation via Enter key
+        document.querySelectorAll('input, select').forEach(input => {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    let form = input.form;
+                    let index = Array.prototype.indexOf.call(form, input);
+                    form.elements[index + 1].focus();
+                }
+            });
+        });
+
+        updateTotals();
+    </script>
+
+</body>
+</html>
